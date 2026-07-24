@@ -172,6 +172,68 @@ router.put('/:id/classify/override', authenticateToken, async (req: Request, res
   }
 });
 
+// PUT /api/products/:id/classify/confirm
+// Confirms the current AI suggestion as correct without changes
+router.put('/:id/classify/confirm', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const productId = parseInt(req.params.id, 10);
+    const userId = (req as any).user.userId;
+
+    if (isNaN(productId)) {
+      return res.status(400).json({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid product ID parameter'
+        }
+      });
+    }
+
+    const product = await verifyProductOwnership(productId, userId);
+    if (!product) {
+      return res.status(404).json({
+        error: {
+          code: 'PRODUCT_NOT_FOUND',
+          message: 'Product not found or you are not authorized to access it'
+        }
+      });
+    }
+
+    // Fetch the latest classification record
+    const latestClassification = await prisma.classification.findFirst({
+      where: { product_id: product.id },
+      orderBy: { created_at: 'desc' }
+    });
+
+    if (!latestClassification) {
+      return res.status(404).json({
+        error: {
+          code: 'CLASSIFICATION_NOT_FOUND',
+          message: 'No prior AI classification record was found. Run classification first.'
+        }
+      });
+    }
+
+    // Update status to confirmed, set confirmed_hs_code to the original AI suggestion
+    const updated = await prisma.classification.update({
+      where: { id: latestClassification.id },
+      data: {
+        status: 'confirmed',
+        confirmed_hs_code: latestClassification.hs_code
+      }
+    });
+
+    return res.status(200).json(updated);
+  } catch (err: any) {
+    console.error('Classification confirm error:', err);
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: err.message || 'An unexpected error occurred during confirmation'
+      }
+    });
+  }
+});
+
 // GET /api/products/:id/classify
 // Fetches the active classification status for the frontend
 router.get('/:id/classify', authenticateToken, async (req: Request, res: Response) => {

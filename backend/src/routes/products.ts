@@ -57,7 +57,13 @@ router.get('/', async (req: Request, res: Response) => {
         where: whereClause,
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' }
+        orderBy: { created_at: 'desc' },
+        include: {
+          classifications: {
+            orderBy: { created_at: 'desc' },
+            take: 1
+          }
+        }
       }),
       prisma.product.count({ where: whereClause })
     ]);

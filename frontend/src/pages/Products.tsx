@@ -12,6 +12,9 @@ interface Product {
   declared_value: string;
   origin_country: string;
   images: string[];
+  classifications?: {
+    status: 'pending_review' | 'confirmed' | 'overridden';
+  }[];
 }
 
 interface ProductsResponse {
@@ -160,6 +163,38 @@ export default function Products() {
                     <span className="absolute top-3 left-3 bg-slate-900/90 border border-slate-850 px-2 py-0.5 rounded text-[10px] font-semibold text-slate-400">
                       {product.category}
                     </span>
+                    {(() => {
+                      const latest = product.classifications?.[0];
+                      if (!latest) {
+                        return (
+                          <span className="absolute top-3 right-3 bg-slate-900/90 border border-slate-800/80 text-slate-500 px-2 py-0.5 rounded text-[10px] font-semibold">
+                            Unclassified
+                          </span>
+                        );
+                      }
+                      switch (latest.status) {
+                        case 'pending_review':
+                          return (
+                            <span className="absolute top-3 right-3 bg-yellow-950/90 border border-yellow-900/80 text-yellow-400 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              Pending Review
+                            </span>
+                          );
+                        case 'confirmed':
+                          return (
+                            <span className="absolute top-3 right-3 bg-emerald-950/90 border border-emerald-900/80 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              Confirmed
+                            </span>
+                          );
+                        case 'overridden':
+                          return (
+                            <span className="absolute top-3 right-3 bg-blue-950/90 border border-blue-900/80 text-blue-400 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              Overridden
+                            </span>
+                          );
+                        default:
+                          return null;
+                      }
+                    })()}
                   </div>
 
                   <div className="p-5 flex-1 flex flex-col justify-between">
