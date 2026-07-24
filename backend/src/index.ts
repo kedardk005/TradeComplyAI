@@ -7,6 +7,7 @@ import productsRouter from './routes/products';
 import hsCodesRouter from './routes/hscodes';
 import classificationRouter from './routes/classification';
 import costEstimateRouter from './routes/costEstimate';
+import readinessRouter from './routes/readiness';
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +24,7 @@ app.use('/api', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/products', classificationRouter);
+app.use('/api/products', readinessRouter);
 app.use('/api/hs-codes', hsCodesRouter);
 app.use('/api/cost-estimate', costEstimateRouter);
 

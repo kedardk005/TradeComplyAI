@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from app.embeddings import embed_text
 from app.vectorstore import query_hs_codes
 from app.classifier import classify_product
+from app.readiness import generate_readiness_rules
 
 app = FastAPI(
     title="TradeComplyAI AI Service API",
@@ -45,6 +46,23 @@ def classify(req: ClassifyRequest):
         raise HTTPException(status_code=400, detail="Product description is required")
     try:
         result = classify_product(req.description, req.category)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ReadinessRequest(BaseModel):
+    description: str
+    category: str | None = None
+
+@app.post("/readiness-check")
+def readiness_check(req: ReadinessRequest):
+    """
+    Retrieves and reasons about export regulatory readiness requirements for a product description.
+    """
+    if not req.description or not req.description.strip():
+        raise HTTPException(status_code=400, detail="Product description is required")
+    try:
+        result = generate_readiness_rules(req.description, req.category)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

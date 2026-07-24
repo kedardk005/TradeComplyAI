@@ -66,6 +66,13 @@ export default function ProductDetail() {
   // UI display states
   const [candidatesExpanded, setCandidatesExpanded] = useState(false);
 
+  // Cost estimator states
+  const [estimateMode, setEstimateMode] = useState<'air' | 'sea'>('air');
+  const [estimateResult, setEstimateResult] = useState<any>(null);
+  const [estimating, setEstimating] = useState(false);
+  const [estimateError, setEstimateError] = useState('');
+  const [estimateExpanded, setEstimateExpanded] = useState(false);
+
   useEffect(() => {
     if (id) {
       setLoading(true);
@@ -80,11 +87,20 @@ export default function ProductDetail() {
               return null;
             }
             throw err;
+          }),
+        api.get<any>(`/cost-estimate/${id}`)
+          .catch((err: any) => {
+            // Expected if no cost estimate has been run yet
+            if (err.status === 404 || err.error?.code === 'ESTIMATE_NOT_FOUND') {
+              return null;
+            }
+            throw err;
           })
       ])
-        .then(([prodData, classData]) => {
+        .then(([prodData, classData, estData]) => {
           setProduct(prodData);
           setClassification(classData);
+          setEstimateResult(estData);
         })
         .catch((err: any) => {
           console.error(err);
@@ -174,6 +190,28 @@ export default function ProductDetail() {
       setClassificationError(err.error?.message || 'Failed to submit HTS code override.');
     } finally {
       setOverrideSubmitting(false);
+    }
+  };
+
+  const handleEstimateCost = async () => {
+    if (!product) return;
+    setEstimating(true);
+    setEstimateError('');
+    try {
+      const data = await api.post<any>(`/cost-estimate`, {
+        productId: product.id,
+        mode: estimateMode
+      });
+      setEstimateResult(data);
+      setEstimateExpanded(true); // Auto-expand breakdown on new calculation
+    } catch (err: any) {
+      console.error(err);
+      setEstimateError(
+        err.error?.message || 
+        'Cost estimation failed. Please verify that duty rates are loaded and try again.'
+      );
+    } finally {
+      setEstimating(false);
     }
   };
 
@@ -582,6 +620,121 @@ export default function ProductDetail() {
                     </button>
                   </div>
                 </form>
+              )}
+            </div>
+
+            {/* Landed Cost Estimator Section */}
+            <div className="bg-slate-900/50 border border-slate-800 p-6 md:p-8 rounded-2xl shadow-xl space-y-6">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M8.433 7.418c.554-.589 1.448-.589 2.002 0l.207.22 1.259-1.222-.208-.222a3.8 3.8 0 00-5.63 0l-.174.185L4.417 7.558c-.554.589-.554 1.542 0 2.13l.174.185 1.258-1.222-.174-.185a.8.8 0 010-1.118l1.508-1.53z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.692c-.599.414-.599 1.42 0 1.834.78.539 1.76.848 2.676 1.026.916.178 1.896.487 2.676 1.026.599.414.599 1.42 0 1.834a4.535 4.535 0 01-1.676.692V15a1 1 0 10-2 0v-.092a4.535 4.535 0 01-1.676-.692c-.599-.414-.599-1.42 0-1.834.78-.539 1.76-.848 2.676-1.026.916-.178 1.896-.487 2.676-1.026.599-.414.599-1.42 0-1.834a4.535 4.535 0 00-1.676-.692V5z" clipRule="evenodd" />
+                  </svg>
+                  Landed Cost Calculator
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Compute full import duties, merchandise fees, cargo insurance, and freight shipping costs.</p>
+              </div>
+
+              {/* Verification Gated State */}
+              {(!classification || classification.status === 'pending_review') ? (
+                <div className="bg-slate-950/40 border border-dashed border-slate-800 p-6 rounded-xl text-center space-y-3">
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    {!classification 
+                      ? 'HTS Classification is required to resolve duty rates before calculating landed cost estimates. Please run AI classification first.'
+                      : 'Classification is pending human review. Please confirm the HTS suggestion as correct to enable cost estimation.'}
+                  </p>
+                  <div className="text-xs font-semibold text-slate-700 uppercase tracking-widest">Gated Compliance Check</div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Mode Selector */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950 p-4 rounded-xl border border-slate-850">
+                    <div>
+                      <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Select Shipping Mode</span>
+                      <span className="text-[10px] text-slate-500 mt-0.5 block">India-US Corridor transit carrier placeholder rates.</span>
+                    </div>
+                    <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEstimateMode('air')}
+                        className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${estimateMode === 'air' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Air Freight
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEstimateMode('sea')}
+                        className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${estimateMode === 'sea' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Sea Cargo
+                      </button>
+                    </div>
+                  </div>
+
+                  {estimateError && (
+                    <div className="bg-red-950/40 border border-red-900/50 p-4 rounded-xl text-red-400 text-xs">
+                      {estimateError}
+                    </div>
+                  )}
+
+                  {/* Trigger Button */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleEstimateCost}
+                      disabled={estimating}
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold py-2.5 px-6 rounded-lg text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-950/20"
+                    >
+                      {estimating ? 'Calculating Landed Costs...' : 'Calculate Landed Cost'}
+                    </button>
+                  </div>
+
+                  {/* Estimation Results Display */}
+                  {estimateResult && (
+                    <div className="bg-slate-950 rounded-xl border border-slate-850 overflow-hidden divide-y divide-slate-900">
+                      {/* Main cost summary banner */}
+                      <div className="p-6 bg-gradient-to-r from-slate-950 to-slate-900/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                          <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Est. Landed Cost</span>
+                          <div className="text-3xl font-black text-emerald-400 mt-1">
+                            ${Number(estimateResult.total_landed_cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <span className="text-[10px] text-slate-500 mt-1 block uppercase tracking-wider font-semibold">
+                            India (IN) &rarr; United States (US) | {estimateResult.mode.toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setEstimateExpanded(!estimateExpanded)}
+                          className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors py-1 px-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 self-start sm:self-auto"
+                        >
+                          {estimateExpanded ? 'Hide Details' : 'Show Details'}
+                        </button>
+                      </div>
+
+                      {/* Breakdown items list */}
+                      {estimateExpanded && (
+                        <div className="p-6 space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Landed Cost Breakdown</h4>
+                          <div className="space-y-3">
+                            {estimateResult.breakdown.map((item: any, idx: number) => (
+                              <div key={idx} className="flex justify-between items-center text-xs py-1.5 border-b border-dashed border-slate-900 last:border-b-0">
+                                <span className="text-slate-400">{item.label}</span>
+                                <span className={`font-mono font-bold ${idx === 0 ? 'text-slate-350' : item.amount === 0 ? 'text-slate-500' : 'text-slate-200'}`}>
+                                  ${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="pt-2 text-[10px] text-slate-500 italic font-medium">
+                            * Rates are snapshot estimates computed on standard tariff definitions and placeholder freight matrices. Final terminal costs may vary.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

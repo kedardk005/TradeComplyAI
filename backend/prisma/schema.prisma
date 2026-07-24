@@ -111,3 +111,20 @@ model CostEstimate {
   @@index([product_id])
 }
 
+enum ReadinessRuleType {
+  hand_verified
+  ai_assisted
+}
+
+model ReadinessRule {
+  id          String            @id @default(uuid())
+  category    String
+  rule_type   ReadinessRuleType
+  requirement String
+  description String
+  source      String
+  created_at  DateTime          @default(now())
+
+  @@index([category])
+}
+
