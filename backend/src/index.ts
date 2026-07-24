@@ -5,6 +5,7 @@ import healthRouter from './routes/health';
 import authRouter from './routes/auth';
 import productsRouter from './routes/products';
 import hsCodesRouter from './routes/hscodes';
+import classificationRouter from './routes/classification';
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use('/api', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
+app.use('/api/products', classificationRouter);
 app.use('/api/hs-codes', hsCodesRouter);
 
 // Start server

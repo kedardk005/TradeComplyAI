@@ -1,10 +1,12 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 from app.embeddings import embed_text
 from app.vectorstore import query_hs_codes
+from app.classifier import classify_product
 
 # Load environment variables
 load_dotenv()
@@ -24,18 +26,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class ClassifyRequest(BaseModel):
+    description: str
+    category: str | None = None
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
+@app.post("/classify")
+def classify(req: ClassifyRequest):
+    """
+    Classifies a product description and optional category, returning the best HS Code,
+    confidence score, reasoning, review flag, and alternative search candidates.
+    """
+    if not req.description or not req.description.strip():
+        raise HTTPException(status_code=400, detail="Product description is required")
+    try:
+        result = classify_product(req.description, req.category)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/debug/search-hs")
 def debug_search_hs(q: str, k: int = 5):
     """
-    TEMPORARY DEBUG ENDPOINT (TO BE REMOVED IN SESSIONS 6+)
+    TEMPORARY DEBUG ENDPOINT (GATED)
+    Gated behind DEBUG_ENDPOINTS_ENABLED env flag.
     Allows testing search retrieval quality and similarity scoring against Chroma.
     """
+    debug_enabled = os.environ.get("DEBUG_ENDPOINTS_ENABLED", "false").lower() == "true"
+    if not debug_enabled:
+        raise HTTPException(status_code=403, detail="Debug endpoints are disabled in this environment.")
+
     if not q or not q.strip():
-        return {"error": "Query string 'q' is required"}
+        raise HTTPException(status_code=400, detail="Query string 'q' is required")
     try:
         query_embedding = embed_text(q)
         matches = query_hs_codes(query_embedding, top_k=k)
@@ -44,4 +69,4 @@ def debug_search_hs(q: str, k: int = 5):
             "results": matches
         }
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))

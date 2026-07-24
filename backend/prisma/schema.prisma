@@ -17,9 +17,9 @@ model User {
 }
 
 model Product {
-  id             Int      @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   user_id        Int
-  user           User     @relation(fields: [user_id], references: [id])
+  user           User             @relation(fields: [user_id], references: [id])
   name           String
   description    String
   category       String
@@ -28,8 +28,9 @@ model Product {
   declared_value Decimal
   origin_country String
   images         String[]
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  classifications Classification[]
 }
 
 model HSCodeReference {
@@ -50,4 +51,26 @@ model DutyRate {
   updated_at          DateTime @updatedAt
 
   @@index([hs_code])
+}
+
+enum ClassificationStatus {
+  pending_review
+  confirmed
+  overridden
+}
+
+model Classification {
+  id                String               @id @default(uuid())
+  product_id        Int
+  product           Product              @relation(fields: [product_id], references: [id])
+  hs_code           String
+  confidence        Int
+  reasoning         String
+  ai_candidates     Json
+  status            ClassificationStatus @default(pending_review)
+  confirmed_hs_code String?
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @updatedAt
+
+  @@index([product_id])
 }
