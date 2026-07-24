@@ -2,14 +2,15 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 from pydantic import BaseModel
 
 from app.embeddings import embed_text
 from app.vectorstore import query_hs_codes
 from app.classifier import classify_product
-
-# Load environment variables
-load_dotenv()
 
 app = FastAPI(
     title="TradeComplyAI AI Service API",

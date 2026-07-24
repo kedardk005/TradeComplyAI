@@ -5,11 +5,6 @@ from groq import Groq
 from app.embeddings import embed_text
 from app.vectorstore import query_hs_codes
 
-# Initialize Groq client
-# Reads GROQ_API_KEY from environment variables loaded via load_dotenv() in main.py
-api_key = os.environ.get("GROQ_API_KEY", "")
-client = Groq(api_key=api_key) if api_key else None
-
 def classify_product(description: str, category: str | None = None) -> dict:
   """
   Classifies a product description into its corresponding HS Code using a hybrid search-LLM pipeline:
@@ -17,6 +12,8 @@ def classify_product(description: str, category: str | None = None) -> dict:
   2. Groq LLM selects the best candidate and outputs structured JSON (hs_code, confidence, reasoning).
   3. Fails gracefully with low-confidence fallback if API errors or validation errors occur.
   """
+  api_key = os.environ.get("GROQ_API_KEY", "")
+  client = Groq(api_key=api_key) if (api_key and api_key != "test_groq_api_key_dev") else None
   # Step 1: Retrieve top candidates from semantic search
   try:
     query_embedding = embed_text(description)
@@ -73,7 +70,7 @@ You must return your choice as a JSON object matching this schema:
   for attempt in range(max_attempts):
     try:
       completion = client.chat.completions.create(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         response_format={"type": "json_object"},
         messages=[
           {
