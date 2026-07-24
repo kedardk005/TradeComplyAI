@@ -31,6 +31,7 @@ model Product {
   created_at     DateTime         @default(now())
   updated_at     DateTime         @updatedAt
   classifications Classification[]
+  estimates      CostEstimate[]
 }
 
 model HSCodeReference {
@@ -74,3 +75,39 @@ model Classification {
 
   @@index([product_id])
 }
+
+enum FreightMode {
+  air
+  sea
+}
+
+model FreightRate {
+  id                  String      @id @default(uuid())
+  origin_country      String
+  destination_country String
+  mode                FreightMode
+  rate_per_kg         Decimal
+  min_charge          Decimal
+  source              String
+  updated_at          DateTime    @updatedAt
+
+  @@index([origin_country, destination_country, mode])
+}
+
+model CostEstimate {
+  id                String      @id @default(uuid())
+  product_id        Int
+  product           Product     @relation(fields: [product_id], references: [id])
+  mode              FreightMode
+  declared_value    Decimal
+  duty_amount       Decimal
+  mpf_amount        Decimal
+  freight_cost      Decimal
+  insurance_cost    Decimal
+  total_landed_cost Decimal
+  breakdown         Json
+  created_at        DateTime    @default(now())
+
+  @@index([product_id])
+}
+
